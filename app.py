@@ -74,13 +74,12 @@ if uploaded_file is not None:
     st.write("### Dataset Summary")
     st.write(data.describe())
 
-
+    if "predicted_data" not in st.session_state:
+        st.session_state.predicted_data = None
 
 
     #Data Prediction
     if st.button("Predict"):
-        if "predicted_data" not in st.session_state:
-            st.session_state.predicted_data = None
         try:
 
             predictions = model.predict(data[features])
