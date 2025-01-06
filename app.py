@@ -44,6 +44,8 @@ features = ['Displaced',
 
 
 
+
+
 uploaded_file = st.file_uploader("Upload your CSV file here", type=["csv"])
 if uploaded_file is not None:
     data = pd.read_csv(uploaded_file)
@@ -71,20 +73,54 @@ if uploaded_file is not None:
 
     st.write("### Dataset Summary")
     st.write(data.describe())
-    
-    #Filter Data 
-    gender_filter=st.selectbox("Select Gender", options=["All", 1,0])
-    scholarship_filter = st.selectbox("Select Scholarship Holder", options=["All", 1, 0])
-    displaced_filter = st.selectbox("Select Displacement Status", options=["All", 1, 0])
-    filtered_data = data.copy()
-    if gender_filter != "All":
-        filtered_data = data[data["Gender"] == gender_filter]
-    if scholarship_filter != "All":
-        filtered_data = data[data['Scholarship holder'] == scholarship_filter]
-    if displaced_filter != "All":
-        filtered_data = data[data['Displaced'] == displaced_filter]
 
-    #Data Visualization
+
+
+
+    #Data Prediction
+    if st.button("Predict"):
+        if "predicted_data" not in st.session_state:
+            st.session_state.predicted_data = None
+        try:
+
+            predictions = model.predict(data[features])
+            probabilities = model.predict_proba(data[features])[:,1]
+
+            st.session_state.predicted_data = data.copy()
+            st.session_state.predicted_data["Dropout_Prediction"] = [
+                "Yes" if pred == 1 else "No" for pred in predictions
+            ]
+            st.session_state.predicted_data["Risk_Score"] = probabilities.round(2)
+
+            st.success("Predictions completed!")
+            
+        except Exception as e:
+            st.error(f"An error occured during prediction: {e}")
+
+if st.session_state.predicted_data is not None:
+    # Provide filtering options for the user
+    filter_option = st.selectbox(
+        "Select predicted value to view:",
+        options=["All", "Yes", "No"],
+        index=0,
+        key="filter_option"
+    )
+    scholarship_filter = st.selectbox("Select Scholarship Holder", options = ["All",1,0])
+    displaced_filter = st.selectbox("Select Displaced Status", options=["All",1,0])
+    
+
+    # Filter data based on selection
+    filtered_data = st.session_state.predicted_data.copy()
+    if filter_option != "All":
+        filtered_data = st.session_state.predicted_data[
+            st.session_state.predicted_data["Dropout_Prediction"] == filter_option]
+    if scholarship_filter != "All":
+        filtered_data = st.session_state.predicted_data[
+            st.session_state.predicted_data["Scholarship holder"] == scholarship_filter]
+    if displaced_filter != "All":
+        filtered_data = st.session_state.predicted_data[
+            st.session_state.predicted_data["Displaced"] == displaced_filter]
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -97,39 +133,21 @@ if uploaded_file is not None:
         st.write('Boxplot of Performance Rate for the 2nd Semester')
         fig, ax = plt.subplots()
         sns.boxplot(x=filtered_data['Performance Rate 2nd Sem'], ax=ax)
-        st.pyplot(fig)
+        st.pyplot(fig)        
 
-    st.write("Age distribution")
-    fig, ax = plt.subplots()
-    sns.histplot(filtered_data["Age at enrollment"],kde=True, color="green", ax=ax)
-    ax.set_title("Distribution of Age")
-    ax.set_xlabel("Age")
-    ax.set_ylabel("Frequency")
-    st.pyplot(fig)
+    st.write(f"### Showing {filter_option} Records:")
+    if not filtered_data.empty:
+        st.dataframe(filtered_data)
 
-
-
-    #Data Prediction
-    if st.button("Predict"):
-        try:
-
-            predictions = model.predict(data[features])
-            probabilities = model.predict_proba(data[features])[:,1]
-
-            data["Dropout_Prediction"] = ["Yes" if pred == 1 else "No" for pred in predictions]
-            data["Risk_Score"] = probabilities.round(2)
-
-            st.write("### Review of the Predicted data:")
-            st.dataframe(data[["Student ID", "Dropout_Prediction", "Risk_Score"]].head())
-            data_dropout = data[data["Target"] == "Yes"]
-
-            csv = data_dropout.to_csv(index=False)
-        except Exception as e:
-            st.error(f"An error occured during prediction: {e}")
-
+        # Download filtered data
+        filtered_csv = filtered_data.to_csv(index=False)
         st.download_button(
-            label = "Download Predictions as CSV",
-            data = csv,
-            file_name = "dropout_predictions.csv",
-            mime = "text/csv"
+            label=f"Download filtered Records as CSV",
+            data=filtered_csv,
+            file_name=f"{filter_option.lower()}_records.csv",
+            mime="text/csv"
         )
+    else:
+        st.write(f"No records found for '{filter_option}'.")      
+        
+   
