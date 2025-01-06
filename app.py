@@ -9,7 +9,11 @@ import joblib
 #model = joblib.load("dropout_model.pkl")
 
 model = joblib.load("dropout_model.pkl")
-
+try:
+    if "predicted_data" not in st.session_state:
+        st.session_state.predicted_data = None
+except AttributeError:
+    st.error("Please upload your file and proceed to click Predict")
 # Streamlit App Title
 st.title("Student Dropout Prediction App")
 st.write("""
@@ -73,9 +77,6 @@ if uploaded_file is not None:
 
     st.write("### Dataset Summary")
     st.write(data.describe())
-
-    if "predicted_data" not in st.session_state:
-        st.session_state.predicted_data = None
 
 
     #Data Prediction
@@ -143,7 +144,7 @@ if st.session_state.predicted_data is not None:
         st.download_button(
             label=f"Download filtered Records as CSV",
             data=filtered_csv,
-            file_name=f"{filter_option.lower()}_records.csv",
+            file_name=f"filtered_records.csv",
             mime="text/csv"
         )
     else:
